@@ -1,0 +1,7 @@
+{
+    "name": "proximify/test",
+    "description": "php src/build.php --vendor-dir=dev/tests/vendor",
+    "scripts": {
+        "build": "cd .. && ls -la"
+    }
+}
