@@ -145,13 +145,44 @@ class AppBuilder
         return $this->getScript($action, $packageDir);
     }
 
-    public function runScript(string $action, string $workDir, string $script): string
+    public function runScript(string $action, string $workDir, string $script): ?string
     {
-        $cmd = $script;
+        // Consider a script that is given as class::method
+        $parts = explode('::', trim($script));
 
-        $std = self::execute($cmd, $workDir);
+        if (count($parts) == 2 && str_word_count($parts[1]) === 1) {
+            [$class, $method] = $parts;
 
-        return $std['out'];
+            // Try loading the class without requiring the default
+            // autoload script.
+            if (!class_exists($class)) {
+                // The 'vendor' dir should be 2 levels up the package dir
+                $vendorDir = dirname($workDir, 2);
+
+                // Include the auto loader
+                require_once $vendorDir . '/autoload.php';
+            }
+
+            // This call will also load the class
+            if (!method_exists($class, $method)) {
+                return null;
+            }
+
+            return $class::$method();
+        } else {
+            $std = self::execute($script, $workDir);
+
+            if ($std['code']) {
+                throw new \Exception("Error from '$script':\n$std[err]");
+            }
+
+            return $std['out'];
+        }
+    }
+
+    static function test()
+    {
+        echo "HELLO";
     }
 
     /**
@@ -185,7 +216,7 @@ class AppBuilder
      * they are added to the output as a suffix.
      * @return void
      */
-    protected static function echoMsg(string $msg, array $options = []): void
+    protected static function echoMsg(?string $msg, array $options = []): void
     {
         if (!($options['verbose'] ?? false)) {
             return;
@@ -199,6 +230,6 @@ class AppBuilder
             $msg .= "\n";
         }
 
-        echo $msg;
+        echo $msg ?? '';
     }
 }
